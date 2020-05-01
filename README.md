@@ -33,7 +33,7 @@ Given this 5% VaR, the expected shortfall is : expected shortfall = -$29,146, wh
 The JP Morgan RiskMetric Model seeks to predict the volatility for the next period as a function of the return from the previous period and standard deviation from the previous period. A time-series plot of this model can be calculated for the randomly selected firms in Section 2, and is given by:
 
 <p align="center">
-  <img height='400' src="https://raw.githubusercontent.com/physics-paul/mfi-assignment7/master/images/4graph1.png">
+  <img height='400' src="https://raw.githubusercontent.com/physics-paul/mfi-assignment7/master/4graph1.png">
 </p>
 
 ### 5. Estimate the volatility through the GARCH model
@@ -41,5 +41,5 @@ The JP Morgan RiskMetric Model seeks to predict the volatility for the next peri
 The big differences in most volatility estimation models revolve around how far back to grab historical data in order to estimate the future volatilty. The GARCH Model is very similar to the JP Morgan Model, but places different weights to the previous period's return and standard deviation. Specifically, we can estimate the alpha and beta parameters used in the analysis to be: alpha = 0.044, and beta = 0.931. A time-series plot of this model can be calculated for the randomly selected firms in Section 2, and is given by:
 
 <p align="center">
-  <img height='400' src="https://raw.githubusercontent.com/physics-paul/mfi-assignment7/master/images/4graph2.png">
+  <img height='400' src="https://raw.githubusercontent.com/physics-paul/mfi-assignment7/master/4graph2.png">
 </p>
