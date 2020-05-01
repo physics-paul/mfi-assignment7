@@ -1,0 +1,214 @@
+####################################################
+# Author: Paul Sanders                             #
+# Course: Management of Financial Institutions     #
+# Assign: Assignment 7                             #
+# Date  : Thursday, November 21st, 2019            #
+####################################################
+
+library(tseries)
+library(readr)
+library(dplyr)
+library(tidyverse) 
+library(timetk)
+library(highcharter)
+library(ggplot2)
+library(readxl)
+library(corrr)
+library(scales)
+library(plotly)
+library(lubridate)
+library(janitor)
+
+####################################################
+# part 1: import data                              #
+####################################################
+
+set.seed(902731717)
+sample(1980:2012,1)
+
+DSF10 <- read_csv(
+  "DATASETS/DSF10_WRANGLED.csv",
+  col_types=cols(
+    PERMNO = col_double(),
+    DATE   = col_date("%m/%d/%Y"),
+    PRC    = col_double(),
+    RET    = col_double()
+    )
+  ) %>%
+  
+  clean_names() %>%
+  
+  drop_na() %>%
+  
+  mutate(prc = abs(prc))
+
+DSF <- read_csv(
+  "DATASETS/DSF_WRANGLED.csv",
+  col_types=cols(
+    PERMNO = col_double(),
+    DATE   = col_date("%m/%d/%Y"),
+    PRC    = col_double(),
+    RET    = col_double()
+    )
+  ) %>%
+  
+  clean_names() %>%
+  
+  drop_na() %>%
+  
+  mutate(prc = abs(prc))
+
+####################################################
+# part 2: assignment first step                    #
+####################################################
+
+STOCKS <- 
+  
+  DSF %>%
+  
+  filter(date == as.Date('1990-01-02')) %>%
+  
+  distinct(.,permno) %>%
+  
+  pull(permno) %>%
+  
+  sample(.,100)
+  
+####################################################
+# part 3: assignment 7.1.1                         #
+####################################################
+
+RETURN <- 
+
+  DSF %>% 
+  
+  filter(permno %in% STOCKS) %>% 
+  
+  group_by(date) %>% 
+  
+  summarise(return = mean(ret), stdev = sd(ret)) %>%
+  
+  arrange(return)
+  
+KEEP <- round(nrow(RETURN) * 0.05)
+  
+VaR <- RETURN$return[KEEP]
+
+dVaR <- VaR * 1000000
+
+ExpShort <- mean(RETURN$return[1:KEEP]) * 1000000
+
+print(paste("VaR from 1990-1996:",round(VaR * 100,2),"%"))
+print(paste("$VaR from 1990-1996: $",round(dVaR,2),sep=""))
+print(paste("Expected Shortfall from 1990-1996: $",round(ExpShort,2),sep=""))
+
+####################################################
+# part 4: assignment 7.1.2                         #
+####################################################
+
+RETURN10 <- 
+
+  DSF10 %>% 
+  
+  filter(permno %in% STOCKS) %>% 
+  
+  group_by(date) %>% 
+  
+  summarise(return = mean(ret), stdev = sd(ret)) %>%
+  
+  arrange(return)
+  
+KEEP <- round(nrow(RETURN10) * 0.05)
+  
+VaR10 <- RETURN10$return[KEEP]
+
+dVaR10 <- VaR10 * 1000000
+
+ExpShort10 <- mean(RETURN10$return[1:KEEP]) * 1000000
+
+RETURN10 <- RETURN10 %>% arrange(date)
+
+print(paste("VaR from 2000-2010:",round(VaR10 * 100,2),"%"))
+print(paste("$VaR from 2000-2010: $",round(dVaR10,2),sep=""))
+print(paste("Expected Shortfall from 2000-2010: $",round(ExpShort10,2),sep=""))
+
+####################################################
+# part 5: assignment 7.2 JP Morgan RiskMetrics     #
+####################################################
+
+estVAR <- function(lambd,prevstd,prevret)
+{
+
+  lambd * prevstd**2 + (1-lambd) * prevret**2
+
+}
+
+####################################################
+
+STARTsd <- sd(RETURN$return)
+STARTmean <- mean(RETURN$return)
+
+PREDVAR  <- vector(mode="double", nrow(RETURN10))
+
+####################################################
+
+PREDVAR[1] = estVAR(0.94,STARTsd,STARTmean)
+
+for (ROW in 2:nrow(RETURN10))
+{
+  PREDVAR[ROW] = estVAR(0.94,PREDVAR[ROW-1],RETURN10$return[ROW-1]) 
+}
+
+RETURN10$predvarJP = PREDVAR
+
+####################################################
+
+RETURN10 %>% 
+  ggplot(aes(x=date,y=predvarJP)) +  
+  geom_line() +
+  ggtitle("JP MORGAN RISKMETRICS VARIANCE")
+  
+####################################################
+# part 6: assignment 7.2 GARCH Model               #
+####################################################
+
+RETURN <- RETURN %>% arrange(date)
+
+garchmodel <- garch(RETURN$return,order=c(1,1))
+
+alpha <- coef(garchmodel)[2]
+beta  <- coef(garchmodel)[3]
+
+print(paste("alpha Parameter :", round(alpha,3)))
+print(paste("beta Parameter :", round(beta,3)))
+
+####################################################
+
+estGARCH <- function(alpha,beta,prevstd,prevret)
+{
+
+  beta * prevstd**2 + alpha * prevret**2
+
+}
+
+####################################################
+
+PREDVARGARCH <- vector(mode="double", nrow(RETURN10))
+
+PREDVARGARCH[1] = estGARCH(alpha,beta,STARTsd,STARTmean)
+
+for (ROW in 2:nrow(RETURN10))
+{
+  PREDVARGARCH[ROW] = estGARCH(alpha,beta,PREDVARGARCH[ROW-1],RETURN10$return[ROW-1]) 
+}
+
+RETURN10$predvarGARCH = PREDVARGARCH
+
+####################################################
+
+RETURN10 %>% 
+  ggplot(aes(x=date,y=predvarGARCH)) +  
+  geom_line() +
+  ggtitle("GARCH MODEL VARIANCE")
+  
+####################################################
